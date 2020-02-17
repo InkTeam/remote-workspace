@@ -1,13 +1,15 @@
-import {Checkbox, PageHeader} from 'antd';
+import {Button, Checkbox, Modal, PageHeader, message} from 'antd';
 import {CheckboxChangeEvent} from 'antd/lib/checkbox';
+import TextArea from 'antd/lib/input/TextArea';
 import {RouteComponentProps} from 'boring-router-react';
-import {observable} from 'mobx';
+import {action, computed, observable} from 'mobx';
 import {observer} from 'mobx-react';
-import React, {Component, ReactNode, createRef} from 'react';
+import React, {ChangeEvent, Component, ReactNode, createRef} from 'react';
 
 import {RawTemplatesConfig, WorkspaceMetadata} from '../../../bld/shared';
 import {VersionInfo, WorkspaceForm, WorkspaceList} from '../@components';
 import {WorkspaceRoute} from '../@routes';
+import {loadCustomizeInitScript, saveCustomizeInitScript} from '../@utils';
 
 export interface HomeViewProps
   extends RouteComponentProps<WorkspaceRoute['home']> {
@@ -29,6 +31,12 @@ export class HomeView extends Component<HomeViewProps> {
 
   @observable
   private formKey = 0;
+
+  @observable
+  private toShowCustomizeModal = false;
+
+  @observable
+  private customizeInitScriptContent = loadCustomizeInitScript();
 
   render(): ReactNode {
     let editingWorkspace = this.editingWorkspace;
@@ -60,8 +68,18 @@ export class HomeView extends Component<HomeViewProps> {
         <PageHeader
           title={editingWorkspace ? 'Edit Workspace' : 'Create Workspace'}
           extra={
-            editingWorkspace && (
-              <a onClick={this.onCancelEditButtonClick}>cancel</a>
+            editingWorkspace ? (
+              <Button size="small" onClick={this.onCancelEditButtonClick}>
+                Cancel
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                icon="setting"
+                onClick={this.onShowCustomizeModal}
+              >
+                Customize
+              </Button>
             )
           }
         />
@@ -71,9 +89,33 @@ export class HomeView extends Component<HomeViewProps> {
             templates={this.templates}
             workspace={editingWorkspace}
             onSubmitSuccess={this.onWorkspaceFormSubmitSuccess}
+            customInitScript={this.customizeInitScriptContent}
           />
         </div>
+        {this.customizeModalRendering}
       </div>
+    );
+  }
+
+  @computed
+  get customizeModalRendering(): ReactNode {
+    return (
+      <Modal
+        title="Customize create steps"
+        visible={this.toShowCustomizeModal}
+        onOk={this.onSaveCustomizeSettings}
+        onCancel={this.onCloseCustomizeSettings}
+      >
+        <p>
+          Your personal customize script will be saved in browser storage.
+          <br /> <strong>Supported syntx: bash</strong>
+        </p>
+        <TextArea
+          rows={20}
+          value={this.customizeInitScriptContent}
+          onChange={this.onCustomizeInitScriptInputChange}
+        ></TextArea>
+      </Modal>
     );
   }
 
@@ -101,6 +143,29 @@ export class HomeView extends Component<HomeViewProps> {
     target,
   }: CheckboxChangeEvent): void => {
     this.toShowAllWorkspaces = target.checked;
+  };
+
+  private onShowCustomizeModal = (): void => {
+    this.customizeInitScriptContent = loadCustomizeInitScript();
+    this.toShowCustomizeModal = true;
+  };
+
+  private onSaveCustomizeSettings = (): void => {
+    this.toShowCustomizeModal = false;
+    saveCustomizeInitScript(this.customizeInitScriptContent);
+
+    message.success('Saved');
+  };
+
+  private onCloseCustomizeSettings = (): void => {
+    this.toShowCustomizeModal = false;
+  };
+
+  @action
+  private onCustomizeInitScriptInputChange = (
+    e: ChangeEvent<HTMLTextAreaElement>,
+  ): void => {
+    this.customizeInitScriptContent = e.target.value;
   };
 
   private async loadTemplates(): Promise<void> {

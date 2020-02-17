@@ -13,13 +13,17 @@ const v = require('villa');
 
 /** @type {import('../../../bld/shared').WorkspaceMetadata} */
 // @ts-ignore
-const {projects} = require('/root/workspace/metadata.json');
+const {
+  projects,
+  customizeInitScript,
+} = require('/root/workspace/metadata.json');
 
 main(async () => {
   // prepare projects
 
   console.info('Checking project hosts...');
 
+  // #region SSH initialize
   let hostSet = new Set(
     projects
       .map(project => (project.git.url.match(/@(.+?):/) || [])[1])
@@ -59,7 +63,16 @@ main(async () => {
     ...process.env,
     GIT_SSH_COMMAND: 'ssh -i /root/.ssh/initialize-identity',
   };
+  // #endregion
 
+  if (customizeInitScript) {
+    let scriptPath = `/root/workspace/customize-init-script.sh`;
+    console.info('Running user custmoize init script...');
+    FSE.writeFileSync(scriptPath, customizeInitScript);
+    await spawn('bash', [scriptPath], {cwd: '/root/workspace/'});
+  }
+
+  // #region Per project initialize
   for (let {
     name,
     git: {url, branch = 'master', newBranch = branch},
@@ -142,6 +155,7 @@ main(async () => {
       }).catch(console.error);
     }
   }
+  // #endregion
 });
 
 /**

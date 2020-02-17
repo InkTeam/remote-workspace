@@ -21,6 +21,11 @@ export interface RawWorkspace {
    * editing.
    */
   params?: Dict<string>;
+  /**
+   * A script that allow user to customize or initialize their workspace at
+   * create or edit.
+   */
+  customizeInitScript?: string;
 }
 
 export interface RawWorkspaceProjectGit {
